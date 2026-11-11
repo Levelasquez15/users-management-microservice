@@ -132,6 +132,25 @@ Para desacoplar la persistencia local hacia un servicio administrado en la nube 
 
 ---
 
+## ⚡ Guía 4: Migración de Base de Datos a TiDB Cloud Serverless
+
+Para migrar desde Aiven hacia **TiDB Cloud Serverless** (compatible con MySQL, plan **Starter** gratuito sin límite de expiración):
+
+1. **Aprovisionar clúster Starter en TiDB Cloud:** crear instancia en **AWS (`N. Virginia us-east-1`)** junto a la región de Render para minimizar latencia, generar contraseña del usuario `.root` en **Connect → Public Endpoint** y anotar `HOST`, `PORT` (`4000`) y `USERNAME`.
+2. **Crear base de datos y esquema:** en el **SQL Editor** de TiDB Cloud (o desde Data Sources del IDE) ejecutar [`src/main/resources/schema.sql`](src/main/resources/schema.sql) para crear `crud_usuarios.users` e insertar el usuario administrador inicial.
+3. **Configurar variables en `.env` (local) y Render (`Environment`):**
+   ```properties
+   DB_HOST=<gateway>.tidbcloud.com
+   DB_PORT=4000
+   DB_NAME=crud_usuarios
+   DB_USERNAME=<id>.root
+   DB_PASSWORD=<tu-clave-tidb>
+   DB_SSL_MODE=VERIFY_IDENTITY
+   ```
+4. **Redesplegar y verificar:** en Render pulsar **Save, rebuild, and deploy**, confirmar `HikariPool-1 - Start completed.` y validar `/health`, `/swagger-ui/index.html`, login JWT y rotación de credenciales del administrador sobre TiDB Cloud.
+
+---
+
 ## 📖 Documentación y Swagger UI
 
 La API expone su documentación interactiva OpenAPI 3.0 accesible desde el navegador:

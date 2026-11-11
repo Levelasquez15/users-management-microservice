@@ -1,6 +1,6 @@
 # Users Management — Microservicio Spring Boot, Arquitectura Hexagonal y DDD
 
-Microservicio backend desarrollado con **Java 17+** y **Spring Boot 3.3.5** para la gestión de usuarios, autenticación y control de acceso basado en roles. Implementa **Arquitectura Hexagonal (Puertos y Adaptadores)**, principios de **Domain-Driven Design (DDD)**, persistencia relacional en **MySQL**, seguridad mediante **Tokens JWT** y notificaciones transaccionales vía **SMTP (JavaMail)**.
+Microservicio backend desarrollado con **Java 17+** y **Spring Boot 3.3.5** para la gestión de usuarios, autenticación y control de acceso basado en roles. Implementa **Arquitectura Hexagonal (Puertos y Adaptadores)**, principios de **Domain-Driven Design (DDD)**, persistencia relacional en **MySQL / TiDB Cloud**, seguridad mediante **Tokens JWT** y notificaciones transaccionales vía **API REST de Brevo con Resilience4j**.
 
 ---
 
@@ -24,9 +24,9 @@ src/main/java/com/jcaa/usersmanagement/
 └── infrastructure/              # ADAPTADORES: Frameworks, integraciones y tecnologías externas
     ├── adapter/
     │   ├── in/rest/             # Controladores REST y DTOs de transporte
-    │   ├── out/persistence/     # Adaptador de persistencia JDBC hacia MySQL
-    │   └── email/               # Adaptador de correo JavaMail para servidor SMTP
-    ├── config/                  # Configuraciones Spring (DataSource, JavaMail, OpenAPI)
+    │   ├── out/persistence/     # Adaptador de persistencia JDBC hacia MySQL / TiDB Cloud
+    │   └── email/               # Adaptador HTTP RestClient hacia Brevo API (Retry + CircuitBreaker)
+    ├── config/                  # Configuraciones Spring (DataSource, Brevo RestClient, OpenAPI)
     └── security/                # Spring Security, filtros JWT y criptografía BCrypt
 ```
 
@@ -65,14 +65,16 @@ DB_USERNAME=root
 DB_PASSWORD=su_contraseña_mysql
 DB_SSL_MODE=DISABLED
 
-# Servidor de Correo SMTP (Gmail / Brevo)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=su_cuenta@gmail.com
-SMTP_PASSWORD=su_clave_de_aplicacion
-SMTP_FROM_ADDRESS=su_cuenta@gmail.com
-SMTP_FROM_NAME=Gestion de Usuarios
+# API transaccional de Brevo (REST HTTPS /v3/smtp/email)
+BREVO_API_KEY=xkeysib-su_clave_api_brevo
+BREVO_FROM_ADDRESS=su_remitente_verificado@gmail.com
+BREVO_FROM_NAME=Gestion de Usuarios
+
+# Seguridad JWT (Base64 de al menos 32 bytes aleatorios)
+JWT_SECRET=su_secreto_jwt_en_base64
 ```
+
+> **Alternativa DevSecOps / Docker Compose:** también puedes copiar [`application-secrets.properties.example`](application-secrets.properties.example) como `.environments/application-secrets.properties` para desarrollo local, o [`compose.env.example`](compose.env.example) como `.env` para ejecutar `docker compose up --build`. Ambos archivos locales están excluidos de Git y Docker.
 
 ### 3. Inicializar la Base de Datos
 Ejecute el script de estructura inicial ubicado en `src/main/resources/schema.sql` en su servidor MySQL:
@@ -127,7 +129,7 @@ Para desacoplar la persistencia local hacia un servicio administrado en la nube 
 ### Flujo DevSecOps, Docker y CI/CD
 1. **Integración Continua (CI):** El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) compila el proyecto con Java 17 y ejecuta `./mvnw --batch-mode --no-transfer-progress clean verify` (194 pruebas unitarias/web) en cada `push` o `pull_request` hacia `main`.
 2. **Empaquetado Docker y Blueprint:** [`Dockerfile`](Dockerfile) construye una imagen multi-stage ligera y [`render.yaml`](render.yaml) define el servicio Web (`plan: free`, `branch: main`, `autoDeployTrigger: commit`, `healthCheckPath: /health`).
-3. **Despliegue Continuo (CD) y Seguridad:** Todas las credenciales (`DB_*`, `SMTP_*`, `JWT_SECRET` Base64 de 32+ bytes) se configuran en la pestaña **Environment** de Render sin almacenarse en Git.
+3. **Despliegue Continuo (CD) y Seguridad:** Todas las credenciales (`DB_*`, `BREVO_*`, `JWT_SECRET` Base64 de 32+ bytes) se configuran en la pestaña **Environment** de Render sin almacenarse en Git (en Guía 3–4 se usó `SMTP_*` antes de migrar a Brevo REST en Guía 5).
 4. **Rotación inicial de administrador:** Tras validar `GET /` (`401 Unauthorized`), `GET /health` (`200 OK`) y autenticarse en `/swagger-ui/index.html`, rotar el correo y contraseña de `admin@example.com` mediante `PUT /api/users/00000000-0000-0000-0000-000000000001`.
 
 ---
@@ -148,6 +150,26 @@ Para migrar desde Aiven hacia **TiDB Cloud Serverless** (compatible con MySQL, p
    DB_SSL_MODE=VERIFY_IDENTITY
    ```
 4. **Redesplegar y verificar:** en Render pulsar **Save, rebuild, and deploy**, confirmar `HikariPool-1 - Start completed.` y validar `/health`, `/swagger-ui/index.html`, login JWT y rotación de credenciales del administrador sobre TiDB Cloud.
+
+---
+
+## 📧 Guía 5: Notificaciones Transaccionales por API REST de Brevo y Resilience4j
+
+Para superar el bloqueo de puertos SMTP salientes (`25`, `465`, `587`) en entornos PaaS como Render Free sin modificar la capa de aplicación (`EmailSenderPort`), el adaptador de correo se migró de JavaMail a la **API RESTful de Brevo (`POST https://api.brevo.com/v3/smtp/email`)** sobre HTTPS (`443`):
+
+1. **Adaptador HTTP síncrono + ejecución asíncrona:** [`BrevoEmailSenderAdapter`](src/main/java/com/jcaa/usersmanagement/infrastructure/adapter/email/BrevoEmailSenderAdapter.java) utiliza `RestClient` configurado en [`BrevoSpringConfig`](src/main/java/com/jcaa/usersmanagement/infrastructure/config/BrevoSpringConfig.java) con timeouts de conexión (`2s`) y lectura (`5s`), autenticado por cabecera `api-key` (`xkeysib-...`) y ejecutado en segundo plano mediante `notificationExecutor` (`@Async`).
+2. **Resiliencia e Idempotencia con Resilience4j:**
+   - **Retry con backoff exponencial:** reintenta fallos transitorios de red (`ResourceAccessException`), `408`, `429` y `5xx`, evitando reintentos sobre errores `4xx` permanentes.
+   - **Circuit Breaker:** abre el circuito al superar el umbral de fallos configurado para proteger la estabilidad del servicio.
+   - **Idempotencia:** adjunta un UUID único en `headers.idempotencyKey` para evitar envíos duplicados entre reintentos.
+3. **Variables requeridas en `.env` y Render (`Environment`):**
+   ```properties
+   BREVO_API_KEY=xkeysib-...
+   BREVO_FROM_ADDRESS=remitente-verificado@ejemplo.com
+   BREVO_FROM_NAME=Gestion de Usuarios
+   ```
+   Los parámetros opcionales `BREVO_CONNECT_TIMEOUT`, `BREVO_READ_TIMEOUT`, `BREVO_RETRY_*` y `BREVO_CIRCUIT_*` cuentan con valores predeterminados en [`application.properties`](src/main/resources/application.properties).
+4. **Cobertura y verificación:** la suite de pruebas supera el **90% de cobertura en JaCoCo** (`mvnw.cmd clean verify`) y valida la entrega transaccional al registrar (`POST /api/users`) o actualizar (`PUT /api/users/{id}`) usuarios.
 
 ---
 

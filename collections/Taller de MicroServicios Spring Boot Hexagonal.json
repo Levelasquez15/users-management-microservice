@@ -1,10 +1,44 @@
 {
   "info": {
     "name": "Taller de MicroServicios Spring Boot Hexagonal",
-    "description": "Colección de pruebas para la Guía 1 de Microservicios Spring Boot",
+    "description": "Colección de pruebas HTTP para producción en Render (Guía 3) y ejecución local: validación JWT (/ y /health), Swagger/JWT, CRUD completo y rotación de credenciales del administrador.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://guia-3-desplegar-el-proyecto-a-un.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
   "item": [
+    {
+      "name": "GET /health (Estado del Servicio)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "GET / (Validar 401 Unauthorized)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        }
+      }
+    },
     {
       "name": "POST /api/auth/login (Admin)",
       "request": {
@@ -20,11 +54,51 @@
           "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin1234!\"\n}"
         },
         "url": {
-          "raw": "http://localhost:8080/api/auth/login",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
           "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "GET /api/users (Listar Usuarios)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/users",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "users"]
+        }
+      }
+    },
+    {
+      "name": "PUT /api/users/00000000-0000-0000-0000-000000000001 (Rotar Credenciales Admin)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Administrador\",\n  \"email\": \"nuevo-email@gmail.com\",\n  \"password\": \"La-nueva-clave-123!\",\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/users/00000000-0000-0000-0000-000000000001",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "users", "00000000-0000-0000-0000-000000000001"]
         }
       }
     },
@@ -40,56 +114,12 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"id\": \"0001\",\n  \"name\": \"Usuario Ejemplo\",\n  \"email\": \"usuario@example.com\",\n  \"password\": \"Abcde1234567**\",\n  \"role\": \"ADMIN\"\n}"
+          "raw": "{\n  \"id\": \"0001\",\n  \"name\": \"Usuario Prueba\",\n  \"email\": \"usuario.prueba@example.com\",\n  \"password\": \"Abcde1234567**\",\n  \"role\": \"MEMBER\"\n}"
         },
         "url": {
-          "raw": "http://localhost:8080/api/users",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
+          "raw": "{{baseUrl}}/api/users",
+          "host": ["{{baseUrl}}"],
           "path": ["api", "users"]
-        }
-      }
-    },
-    {
-      "name": "GET /api/users (Listar Usuarios)",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
-        "url": {
-          "raw": "http://localhost:8080/api/users",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
-          "path": ["api", "users"]
-        }
-      }
-    },
-    {
-      "name": "POST /api/auth/login (Usuario Creado)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"usuario@example.com\",\n  \"password\": \"Abcde1234567**\"\n}"
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/auth/login",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
-          "path": ["api", "auth", "login"]
         }
       }
     },
@@ -109,13 +139,11 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"id\": \"0001\",\n  \"name\": \"Usuario Ejemplo\",\n  \"email\": \"usuario@example.com\",\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
+          "raw": "{\n  \"name\": \"Usuario Prueba\",\n  \"email\": \"usuario.prueba@example.com\",\n  \"role\": \"MEMBER\",\n  \"status\": \"ACTIVE\"\n}"
         },
         "url": {
-          "raw": "http://localhost:8080/api/users/0001",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
+          "raw": "{{baseUrl}}/api/users/0001",
+          "host": ["{{baseUrl}}"],
           "path": ["api", "users", "0001"]
         }
       }
@@ -131,10 +159,8 @@
           }
         ],
         "url": {
-          "raw": "http://localhost:8080/api/users/0001",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
+          "raw": "{{baseUrl}}/api/users/0001",
+          "host": ["{{baseUrl}}"],
           "path": ["api", "users", "0001"]
         }
       }
@@ -150,10 +176,8 @@
           }
         ],
         "url": {
-          "raw": "http://localhost:8080/api/users/0001",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
+          "raw": "{{baseUrl}}/api/users/0001",
+          "host": ["{{baseUrl}}"],
           "path": ["api", "users", "0001"]
         }
       }

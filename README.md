@@ -118,10 +118,25 @@ Para desacoplar la persistencia local hacia un servicio administrado en la nube 
 
 ---
 
+## 🚀 Guía 3: Despliegue en Render (PaaS) y CI/CD
+
+- **URL de producción (Render):** `https://guia-3-desplegar-el-proyecto-a-un.onrender.com`
+- **Health Check:** `https://guia-3-desplegar-el-proyecto-a-un.onrender.com/health`
+- **Swagger UI (Nube):** `https://guia-3-desplegar-el-proyecto-a-un.onrender.com/swagger-ui/index.html`
+
+### Flujo DevSecOps, Docker y CI/CD
+1. **Integración Continua (CI):** El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) compila el proyecto con Java 17 y ejecuta `./mvnw --batch-mode --no-transfer-progress clean verify` (194 pruebas unitarias/web) en cada `push` o `pull_request` hacia `main`.
+2. **Empaquetado Docker y Blueprint:** [`Dockerfile`](Dockerfile) construye una imagen multi-stage ligera y [`render.yaml`](render.yaml) define el servicio Web (`plan: free`, `branch: main`, `autoDeployTrigger: commit`, `healthCheckPath: /health`).
+3. **Despliegue Continuo (CD) y Seguridad:** Todas las credenciales (`DB_*`, `SMTP_*`, `JWT_SECRET` Base64 de 32+ bytes) se configuran en la pestaña **Environment** de Render sin almacenarse en Git.
+4. **Rotación inicial de administrador:** Tras validar `GET /` (`401 Unauthorized`), `GET /health` (`200 OK`) y autenticarse en `/swagger-ui/index.html`, rotar el correo y contraseña de `admin@example.com` mediante `PUT /api/users/00000000-0000-0000-0000-000000000001`.
+
+---
+
 ## 📖 Documentación y Swagger UI
 
 La API expone su documentación interactiva OpenAPI 3.0 accesible desde el navegador:
-👉 **`http://localhost:8080/swagger-ui/index.html`**
+- **Local:** `http://localhost:8080/swagger-ui/index.html`
+- **Producción (Render):** `https://guia-3-desplegar-el-proyecto-a-un.onrender.com/swagger-ui/index.html`
 
 ---
 

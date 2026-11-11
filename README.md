@@ -99,6 +99,25 @@ El microservicio quedará escuchando en el puerto por defecto: `http://localhost
 
 ---
 
+## ☁️ Guía 2: Base de Datos Remota en Aiven (MySQL + SSL)
+
+Para desacoplar la persistencia local hacia un servicio administrado en la nube (**Aiven MySQL**):
+
+1. **Aprovisionar servicio MySQL en Aiven Cloud:** crear la instancia gratuita (`developer-1`), verificar estado `Running` y copiar `Host`, `Port`, `User` (`avnadmin`) y `Password`.
+2. **Inicializar el esquema remoto:** conectarse con MySQL Workbench o el cliente Database de IntelliJ IDEA y ejecutar [`src/main/resources/schema.sql`](src/main/resources/schema.sql) para crear `crud_usuarios`, la tabla `users` y el usuario administrador inicial (`admin@example.com`).
+3. **Configurar variables remotas en `.env` (sin exponer secretos en Git):**
+   ```properties
+   DB_HOST=<tu-host>.aivencloud.com
+   DB_PORT=<puerto-aiven>
+   DB_NAME=crud_usuarios
+   DB_USERNAME=avnadmin
+   DB_PASSWORD=<tu-clave-aiven>
+   DB_SSL_MODE=REQUIRED
+   ```
+4. **Verificar conexión SSL:** al iniciar el servicio (`mvnw.cmd spring-boot:run`), confirmar en consola `HikariPool-1 - Added connection` hacia Aiven con cifrado SSL y validar autenticación JWT en `/swagger-ui/index.html`.
+
+---
+
 ## 📖 Documentación y Swagger UI
 
 La API expone su documentación interactiva OpenAPI 3.0 accesible desde el navegador:

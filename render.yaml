@@ -1,4 +1,4 @@
-# Render Blueprint (IaC) - Guia 3: Despliegue PaaS Docker + CD automatico desde main
+# Render Blueprint (IaC) - Guia 4: TiDB Cloud TLS (VERIFY_IDENTITY) + CD automatico desde main
 services:
   - type: web
     name: users-management-api
@@ -19,7 +19,7 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: DB_SSL_MODE
-        value: REQUIRED
+        value: VERIFY_IDENTITY
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT

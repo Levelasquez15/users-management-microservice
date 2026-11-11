@@ -1,4 +1,4 @@
-# Render Blueprint (IaC) - Guia 4: TiDB Cloud TLS (VERIFY_IDENTITY) + CD automatico desde main
+# Render Blueprint (IaC) - Guia 5: TiDB Cloud TLS (VERIFY_IDENTITY) + API REST de Brevo + CD desde main
 services:
   - type: web
     name: users-management-api
@@ -20,17 +20,11 @@ services:
         sync: false
       - key: DB_SSL_MODE
         value: VERIFY_IDENTITY
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USERNAME
+      - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_PASSWORD
+      - key: BREVO_FROM_ADDRESS
         sync: false
-      - key: SMTP_FROM_ADDRESS
-        sync: false
-      - key: SMTP_FROM_NAME
+      - key: BREVO_FROM_NAME
         value: Gestion de Usuarios
       - key: JWT_SECRET
         generateValue: true
